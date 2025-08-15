@@ -27,5 +27,18 @@
   "devDependencies": {
     "@babel/core": "^7.20.0"
   },
-  "private": true
+  "private": true,
+  "description": "A pediatric pulse assessment mobile application that uses photoplethysmography (PPG) with the device camera and flashlight to measure heart rate and blood pressure for children.",
+  "keywords": [
+    "pediatric",
+    "heart-rate",
+    "blood-pressure",
+    "ppg",
+    "photoplethysmography",
+    "mobile-app",
+    "health-monitoring",
+    "children-health"
+  ],
+  "author": "PulseKids Team",
+  "license": "MIT"
 }

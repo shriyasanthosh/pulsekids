@@ -10,24 +10,21 @@ export const PPGVisualization = ({
   confidence, 
   isScanning,
   signalQuality = 'good',
-  temperature = 37.0,
+  temperature = 37,
   childAge = 5
 }) => {
   const [animatedValues] = useState(() => ({
     pulse: new Animated.Value(1),
     confidence: new Animated.Value(0),
     heartBeat: new Animated.Value(1),
-    wave: new Animated.Value(0),
   }));
 
   useEffect(() => {
     if (isScanning) {
       startPulseAnimation();
-      startWaveAnimation();
       animateConfidence(confidence);
     } else {
       stopPulseAnimation();
-      stopWaveAnimation();
     }
   }, [isScanning, confidence]);
 
@@ -37,18 +34,18 @@ export const PPGVisualization = ({
     const animate = () => {
       Animated.sequence([
         Animated.timing(animatedValues.pulse, {
-          toValue: 1.2,
-          duration: 200,
+          toValue: 1.15,
+          duration: 150,
           useNativeDriver: true,
         }),
         Animated.timing(animatedValues.pulse, {
           toValue: 1,
-          duration: 200,
+          duration: 150,
           useNativeDriver: true,
         })
       ]).start(() => {
         if (isScanning) {
-          setTimeout(animate, interval - 400);
+          setTimeout(animate, interval - 300);
         }
       });
     };
@@ -61,21 +58,6 @@ export const PPGVisualization = ({
     animatedValues.pulse.setValue(1);
   };
 
-  const startWaveAnimation = () => {
-    Animated.loop(
-      Animated.timing(animatedValues.wave, {
-        toValue: 1,
-        duration: 2000,
-        useNativeDriver: false,
-      })
-    ).start();
-  };
-
-  const stopWaveAnimation = () => {
-    animatedValues.wave.stopAnimation();
-    animatedValues.wave.setValue(0);
-  };
-
   const animateConfidence = (conf) => {
     Animated.timing(animatedValues.confidence, {
       toValue: conf || 0,
@@ -86,19 +68,19 @@ export const PPGVisualization = ({
 
   const getSignalColor = () => {
     switch (signalQuality) {
-      case 'excellent': return '#FF69B4'; // Pink
-      case 'good': return '#4A90E2'; // Blue
-      case 'fair': return '#FFB800'; // Orange
-      case 'poor': return '#FF4444'; // Red
+      case 'excellent': return '#00ff88';
+      case 'good': return '#00d4ff';
+      case 'fair': return '#ffb800';
+      case 'poor': return '#ff4444';
       default: return '#888888';
     }
   };
 
   const getConfidenceColor = () => {
-    if (confidence > 0.8) return '#FF69B4';
-    if (confidence > 0.6) return '#4A90E2';
-    if (confidence > 0.4) return '#FFB800';
-    return '#FF4444';
+    if (confidence > 0.8) return '#00ff88';
+    if (confidence > 0.6) return '#00d4ff';
+    if (confidence > 0.4) return '#ffb800';
+    return '#ff4444';
   };
 
   const getBPStatus = () => {
@@ -107,6 +89,34 @@ export const PPGVisualization = ({
     const sys = bloodPressure.systolic;
     const dia = bloodPressure.diastolic;
     
+    // Age-adjusted BP categories for children
+    if (childAge <= 1) {
+      if (sys < 80 && dia < 55) return 'Normal';
+      if (sys < 90 && dia < 65) return 'Elevated';
+      if (sys < 100 || dia < 75) return 'High Stage 1';
+      if (sys < 110 || dia < 85) return 'High Stage 2';
+      return 'Crisis';
+    } else if (childAge <= 3) {
+      if (sys < 85 && dia < 60) return 'Normal';
+      if (sys < 95 && dia < 70) return 'Elevated';
+      if (sys < 105 || dia < 80) return 'High Stage 1';
+      if (sys < 115 || dia < 90) return 'High Stage 2';
+      return 'Crisis';
+    } else if (childAge <= 5) {
+      if (sys < 90 && dia < 65) return 'Normal';
+      if (sys < 100 && dia < 75) return 'Elevated';
+      if (sys < 110 || dia < 85) return 'High Stage 1';
+      if (sys < 120 || dia < 95) return 'High Stage 2';
+      return 'Crisis';
+    } else if (childAge <= 7) {
+      if (sys < 95 && dia < 70) return 'Normal';
+      if (sys < 105 && dia < 80) return 'Elevated';
+      if (sys < 115 || dia < 90) return 'High Stage 1';
+      if (sys < 125 || dia < 100) return 'High Stage 2';
+      return 'Crisis';
+    }
+    
+    // Default adult categories
     if (sys < 120 && dia < 80) return 'Normal';
     if (sys < 130 && dia < 80) return 'Elevated';
     if (sys < 140 || dia < 90) return 'High Stage 1';
@@ -117,13 +127,25 @@ export const PPGVisualization = ({
   const getBPColor = () => {
     const status = getBPStatus();
     switch (status) {
-      case 'Normal': return '#FF69B4';
-      case 'Elevated': return '#FFB800';
-      case 'High Stage 1': return '#FF8800';
-      case 'High Stage 2': return '#FF4444';
+      case 'Normal': return '#00ff88';
+      case 'Elevated': return '#ffb800';
+      case 'High Stage 1': return '#ff8800';
+      case 'High Stage 2': return '#ff4444';
       case 'Crisis': return '#cc0000';
       default: return '#888888';
     }
+  };
+
+  const getTemperatureColor = () => {
+    if (temperature < 36) return '#00d4ff';      // Cold
+    if (temperature > 38) return '#ff4444';      // Fever
+    return '#00ff88';                            // Normal
+  };
+
+  const getTemperatureStatus = () => {
+    if (temperature < 36) return 'Low';
+    if (temperature > 38) return 'Fever';
+    return 'Normal';
   };
 
   const renderSignalBars = () => {
@@ -133,7 +155,7 @@ export const PPGVisualization = ({
     const maxHeight = 80;
     
     return signalData.slice(-60).map((point, index) => (
-      <Animated.View
+      <View
         key={index}
         style={[
           styles.signalBar,
@@ -143,12 +165,6 @@ export const PPGVisualization = ({
             backgroundColor: getSignalColor(),
             opacity: 0.7 + (Math.abs(point.y) * 0.3),
             left: index * barWidth,
-            transform: [{
-              scaleY: animatedValues.wave.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0.8, 1.2],
-              })
-            }]
           }
         ]}
       />
@@ -165,7 +181,7 @@ export const PPGVisualization = ({
           styles.vitalCard,
           { transform: [{ scale: animatedValues.pulse }] }
         ]}>
-          <Text style={styles.vitalLabel}>❤️ Heart Rate</Text>
+          <Text style={styles.vitalLabel}>Heart Rate</Text>
           <Text style={[styles.vitalValue, { color: getSignalColor() }]}>
             {heartRate || '--'}
           </Text>
@@ -180,8 +196,8 @@ export const PPGVisualization = ({
                   {
                     transform: [{
                       scaleY: animatedValues.pulse.interpolate({
-                        inputRange: [1, 1.2],
-                        outputRange: [1, 1.3 + i * 0.1],
+                        inputRange: [1, 1.15],
+                        outputRange: [1, 1.2 + i * 0.1],
                       })
                     }],
                     backgroundColor: getSignalColor(),
@@ -195,7 +211,7 @@ export const PPGVisualization = ({
 
         {/* Blood Pressure Section */}
         <View style={styles.vitalCard}>
-          <Text style={styles.vitalLabel}>💙 Blood Pressure</Text>
+          <Text style={styles.vitalLabel}>Blood Pressure</Text>
           <View style={styles.bpDisplay}>
             <Text style={[styles.bpValue, { color: getBPColor() }]}>
               {bloodPressure?.systolic || '--'}
@@ -212,12 +228,36 @@ export const PPGVisualization = ({
           </View>
         </View>
 
+        {/* Temperature Section */}
+        <View style={styles.vitalCard}>
+          <Text style={styles.vitalLabel}>Temperature</Text>
+          <Text style={[styles.vitalValue, { color: getTemperatureColor() }]}>
+            {temperature ? `${temperature.toFixed(1)}°C` : '--'}
+          </Text>
+          <Text style={styles.vitalUnit}>Body Temp</Text>
+          
+          <View style={[styles.tempStatus, { backgroundColor: getTemperatureColor() }]}>
+            <Text style={styles.tempStatusText}>{getTemperatureStatus()}</Text>
+          </View>
+        </View>
+
+      </View>
+
+      {/* Child Age Display */}
+      <View style={styles.ageContainer}>
+        <Text style={styles.ageLabel}>Child Age: {childAge} years</Text>
+        <Text style={styles.ageSubtext}>
+          {childAge <= 1 ? 'Infant (0-1 years)' : 
+           childAge <= 3 ? 'Toddler (1-3 years)' :
+           childAge <= 5 ? 'Preschool (3-5 years)' :
+           'School Age (5-7 years)'}
+        </Text>
       </View>
 
       {/* Signal Waveform */}
       <View style={styles.signalContainer}>
         <View style={styles.signalHeader}>
-          <Text style={styles.signalTitle}>📊 Heart Signal</Text>
+          <Text style={styles.signalTitle}>PPG Signal</Text>
           <View style={[styles.qualityBadge, { backgroundColor: getSignalColor() }]}>
             <Text style={styles.qualityText}>{signalQuality.toUpperCase()}</Text>
           </View>
@@ -264,7 +304,7 @@ export const PPGVisualization = ({
 
       {/* Confidence Indicator */}
       <View style={styles.confidenceSection}>
-        <Text style={styles.confidenceLabel}>🎯 Measurement Quality</Text>
+        <Text style={styles.confidenceLabel}>Measurement Quality</Text>
         <View style={styles.confidenceBar}>
           <Animated.View
             style={[
@@ -286,10 +326,10 @@ export const PPGVisualization = ({
 
       {/* Status Indicators */}
       <View style={styles.statusGrid}>
-        <StatusDot label="📷 Camera" active={isScanning} color="#4A90E2" />
-        <StatusDot label="💡 Flash" active={isScanning} color="#FFB800" />
-        <StatusDot label="📡 Signal" active={signalData && signalData.length > 30} color="#FF69B4" />
-        <StatusDot label="❤️ HR Valid" active={heartRate && heartRate > 0} color="#FF4444" />
+        <StatusDot label="Camera" active={isScanning} color="#00d4ff" />
+        <StatusDot label="Flash" active={isScanning} color="#ffb800" />
+        <StatusDot label="Signal" active={signalData && signalData.length > 30} color="#00ff88" />
+        <StatusDot label="HR Valid" active={heartRate && heartRate > 0} color="#ff4444" />
       </View>
 
     </View>
@@ -324,17 +364,15 @@ const styles = StyleSheet.create({
   },
   vitalCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 16,
     padding: 16,
     marginHorizontal: 5,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   vitalLabel: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 8,
   },
@@ -343,7 +381,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   vitalUnit: {
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 12,
     marginTop: 4,
   },
@@ -354,7 +392,7 @@ const styles = StyleSheet.create({
     height: 35,
   },
   pulseBar: {
-    width: 4,
+    width: 3,
     height: 20,
     marginHorizontal: 1,
     borderRadius: 2,
@@ -383,13 +421,39 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  signalContainer: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+  tempStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  tempStatusText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  ageContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+  },
+  ageLabel: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  ageSubtext: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 12,
+  },
+  signalContainer: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
   },
   signalHeader: {
     flexDirection: 'row',
@@ -414,7 +478,7 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 15,
+    borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
     height: 100,
@@ -445,7 +509,7 @@ const styles = StyleSheet.create({
   signalBar: {
     position: 'absolute',
     bottom: 40,
-    borderRadius: 2,
+    borderRadius: 1,
     minHeight: 2,
     maxHeight: 80,
   },
@@ -472,17 +536,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   metricLabel: {
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 10,
     marginTop: 2,
   },
   confidenceSection: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   confidenceLabel: {
     color: 'white',
@@ -493,30 +555,27 @@ const styles = StyleSheet.create({
   },
   confidenceBar: {
     width: '100%',
-    height: 10,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 5,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 8,
   },
   confidenceFill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 4,
   },
   confidenceValue: {
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 12,
     textAlign: 'center',
-    fontWeight: '600',
   },
   statusGrid: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
     padding: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.1)',
   },
   statusDot: {
     alignItems: 'center',
